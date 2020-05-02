@@ -1,0 +1,16 @@
+{
+  "id": "fullxxxmovies",
+  "name": "fullxxxmovies",
+  "active": true,
+  "adult": true,
+  "language": ["*"],
+  "thumbnail": "FullXXXMovies.png",
+  "banner": "",
+  "categories": [
+    "adult"
+  ],
+  "settings": [
+
+  ]
+}
+
