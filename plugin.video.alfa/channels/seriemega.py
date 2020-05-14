@@ -232,7 +232,7 @@ def findvideos(item):
             elem = BeautifulSoup(elem.text, "html5lib", from_encoding="utf-8")
             new_url = elem.iframe["src"]
         else:
-            new_url = elem.iframe["data-lazy-src"]
+            new_url = elem.iframe["src"]
         new_url = create_soup(new_url).find("div", class_="Video").iframe["src"]
 
         if "seriemega" in new_url:

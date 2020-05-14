@@ -28,6 +28,7 @@ from .exceptions import (
     CloudflareLoopProtection,
     CloudflareCode1020,
     CloudflareIUAMError,
+    CloudflareChallengeError,
     CloudflareReCaptchaError,
     CloudflareReCaptchaProvider
 )
@@ -54,7 +55,7 @@ except ImportError:
 
 # ------------------------------------------------------------------------------- #
 
-__version__ = '1.2.34'
+__version__ = '1.2.35'
 
 # ------------------------------------------------------------------------------- #
 
@@ -266,6 +267,27 @@ class CloudScraper(Session):
         return False
 
     # ------------------------------------------------------------------------------- #
+    # check if the response contains new Cloudflare challenge
+    # ------------------------------------------------------------------------------- #
+
+    @staticmethod
+    def is_New_IUAM_Challenge(resp):
+        try:
+            return (
+                resp.headers.get('Server', '').startswith('cloudflare')
+                and resp.status_code in [429, 503]
+                and re.search(
+                    r'cpo.src="/cdn-cgi/challenge-platform/orchestrate/jsch/v1"',
+                    resp.text,
+                    re.M | re.DOTALL
+                )
+            )
+        except AttributeError:
+            pass
+
+        return False
+
+    # ------------------------------------------------------------------------------- #
     # check if the response contains a valid Cloudflare reCaptcha challenge
     # ------------------------------------------------------------------------------- #
 
@@ -316,6 +338,12 @@ class CloudScraper(Session):
             self.simpleException(
                 CloudflareCode1020,
                 'Cloudflare has blocked this request (Code 1020 Detected).'
+            )
+
+        if self.is_New_IUAM_Challenge(resp):
+            self.simpleException(
+                CloudflareChallengeError,
+                'Detected the new Cloudflare challenge.'
             )
 
         if self.is_reCaptcha_Challenge(resp) or self.is_IUAM_Challenge(resp):
@@ -500,10 +528,12 @@ class CloudScraper(Session):
                     if isinstance(delay, (int, float)):
                         self.delay = delay
                 except (AttributeError, ValueError):
-                    self.simpleException(
-                        CloudflareIUAMError,
-                        "Cloudflare IUAM possibility malformed, issue extracing delay value."
-                    )
+                    #self.simpleException(
+                    #    CloudflareIUAMError,
+                    #    "Cloudflare IUAM possibility malformed, issue extracing delay value."
+                    #)
+                    self.delay = float(5)
+                    logging.error('Cloudflare IUAM possibility malformed, issue extracing delay value.')
 
             sleep(self.delay)
 
@@ -671,13 +701,20 @@ class CloudScraper(Session):
 # ------------------------------------------------------------------------------- #
 
 if ssl.OPENSSL_VERSION_INFO < (1, 1, 1):
-    print(
+    try:
+        print(
         "DEPRECATION: The OpenSSL being used by this python install ({}) does not meet the minimum supported "
         "version (>= OpenSSL 1.1.1) in order to support TLS 1.3 required by Cloudflare, "
         "You may encounter an unexpected reCaptcha or cloudflare 1020 blocks.".format(
             ssl.OPENSSL_VERSION
+            )
         )
-    )
+    except:
+        print(
+        "DEPRECATION: The OpenSSL being used by this python install does not meet the minimum supported "
+        "version (>= OpenSSL 1.1.1) in order to support TLS 1.3 required by Cloudflare, "
+        "You may encounter an unexpected reCaptcha or cloudflare 1020 blocks."
+        )
 
 # ------------------------------------------------------------------------------- #
 
